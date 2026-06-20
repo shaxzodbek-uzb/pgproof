@@ -1,0 +1,11 @@
+dist/
+pgproof
+*.yml
+!pgproof.example.yml
+*.dump
+*.sql
+*.sql.gz
+*.age
+.git/
+.github/
+*.md

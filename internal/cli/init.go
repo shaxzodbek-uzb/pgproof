@@ -1,0 +1,148 @@
+package cli
+
+import (
+	"fmt"
+	"os"
+
+	"github.com/spf13/cobra"
+
+	"github.com/shaxzodbek-uzb/pgproof/internal/crypto"
+)
+
+func initCmd() *cobra.Command {
+	var force bool
+	cmd := &cobra.Command{
+		Use:   "init [path]",
+		Short: "Write a commented sample config file",
+		Args:  cobra.MaximumNArgs(1),
+		RunE: func(_ *cobra.Command, args []string) error {
+			path := flagConfig
+			if len(args) == 1 {
+				path = args[0]
+			}
+			if _, err := os.Stat(path); err == nil && !force {
+				return fmt.Errorf("%s already exists (use --force to overwrite)", path)
+			}
+			if err := os.WriteFile(path, []byte(SampleConfig), 0o600); err != nil {
+				return err
+			}
+			fmt.Printf("wrote %s\nnext: edit it, then `pgproof test` and `pgproof backup`\n", path)
+			return nil
+		},
+	}
+	cmd.Flags().BoolVar(&force, "force", false, "overwrite an existing config file")
+	return cmd
+}
+
+func keygenCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "keygen",
+		Short: "Generate an age keypair for recipient-based encryption",
+		Args:  cobra.NoArgs,
+		RunE: func(_ *cobra.Command, _ []string) error {
+			secret, public, err := crypto.GenerateKeypair()
+			if err != nil {
+				return err
+			}
+			fmt.Println("# Public recipient — set under encryption.recipients on the BACKUP host:")
+			fmt.Println(public)
+			fmt.Println()
+			fmt.Println("# Secret identity — KEEP THIS SAFE and OFF the backup host where possible.")
+			fmt.Println("# It is required to decrypt, restore and verify. Set as encryption.identity:")
+			fmt.Println(secret)
+			return nil
+		},
+	}
+}
+
+// SampleConfig is the content written by "pgproof init". It mirrors
+// pgproof.example.yml in the repo root. (No backticks here: this is a Go raw
+// string literal, so command names in comments use plain quotes.)
+const SampleConfig = `# pgproof configuration — https://github.com/shaxzodbek-uzb/pgproof
+# Values like ${VAR} are read from the environment. ${VAR:-default} supplies a
+# fallback. Keep this file mode 0600 — it can hold credentials.
+
+# Databases to back up. List as many as you like.
+databases:
+  - name: app                 # logical name (used in artifact paths + the CLI)
+    driver: postgres          # postgres | mysql
+    host: 127.0.0.1
+    port: 5432
+    user: postgres
+    password: ${PGPASSWORD}   # never hard-code secrets; pull from the environment
+    dbname: app
+    sslmode: prefer           # postgres only: disable|prefer|require|verify-full
+    dump_format: custom       # postgres only: custom (recommended) | plain
+    jobs: 2                   # parallel jobs for custom-format restore/verify
+    # admin_db: postgres      # maintenance DB used to create the throwaway verify DB
+
+# At-rest encryption (age). Use EITHER a passphrase OR recipients (+ identity).
+encryption:
+  enabled: true
+  passphrase: ${PGPROOF_PASSPHRASE}
+  # recipients:               # asymmetric mode — generate with: pgproof keygen
+  #   - age1qxy...
+  # identity: ${AGE_SECRET_KEY}   # needed to decrypt/restore/verify with recipients
+
+# Where backups are stored. The first s3/local entry is the default for
+# restore/verify/list. Telegram is a write-only off-site copy.
+destinations:
+  - type: s3                  # works with AWS S3, Cloudflare R2, DO Spaces, MinIO
+    name: r2
+    bucket: my-backups
+    prefix: pgproof
+    endpoint: ${S3_ENDPOINT:-}    # blank = AWS; e.g. https://<acct>.r2.cloudflarestorage.com
+    region: ${S3_REGION:-auto}
+    access_key: ${S3_ACCESS_KEY}
+    secret_key: ${S3_SECRET_KEY}
+    path_style: false             # true for MinIO and some self-hosted gateways
+
+  - type: local
+    name: disk
+    path: /var/backups/pgproof
+
+  # - type: telegram
+  #   name: tg
+  #   bot_token: ${TG_BOT_TOKEN}
+  #   chat_id: ${TG_CHAT_ID}
+  #   max_size_mb: 50
+
+# The headline feature: after each backup, restore it into a throwaway database
+# and assert it is sane. A backup that does not restore is reported as FAILED.
+verify:
+  enabled: true
+  from_remote: false          # true = download+decrypt the stored copy and verify THAT
+  min_tables: 1               # fail if fewer than this many tables restore
+  # row_count_tables:         # optionally assert these tables came back non-empty
+  #   - public.users
+
+# Keep/prune policy applied by "pgproof prune" (and "backup --prune").
+retention:
+  keep_last: 7
+  keep_daily: 7
+  keep_weekly: 4
+  keep_monthly: 6
+
+# Notifications. Telegram pages you; healthchecks.io is a dead-man's switch.
+notify:
+  telegram:
+    enabled: false
+    bot_token: ${TG_BOT_TOKEN}
+    chat_id: ${TG_CHAT_ID}
+    on_success: true
+    on_failure: true
+  healthchecks:
+    enabled: false
+    ping_url: ${HC_PING_URL}
+
+# Built-in scheduler for "pgproof run" (no system cron needed).
+schedule:
+  cron: "0 3 * * *"           # daily at 03:00
+  timezone: UTC
+  prune: true                 # prune after each scheduled backup
+
+staging_dir: ""               # local working dir; blank = system temp
+timeout_seconds: 3600
+log_level: info               # debug | info | warn | error
+log_format: text              # text | json
+`

@@ -1,0 +1,62 @@
+version: 2
+
+project_name: pgproof
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: pgproof
+    main: .
+    binary: pgproof
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+      - -X github.com/shaxzodbek-uzb/pgproof/internal/buildinfo.Version={{.Version}}
+      - -X github.com/shaxzodbek-uzb/pgproof/internal/buildinfo.Commit={{.ShortCommit}}
+      - -X github.com/shaxzodbek-uzb/pgproof/internal/buildinfo.Date={{.Date}}
+
+archives:
+  - id: pgproof
+    name_template: >-
+      {{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}
+    format_overrides:
+      - goos: windows
+        format: zip
+    files:
+      - README.md
+      - LICENSE
+      - pgproof.example.yml
+
+checksum:
+  name_template: checksums.txt
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  sort: asc
+  use: github
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
+      - Merge pull request
+      - Merge branch
+
+release:
+  draft: false
+  prerelease: auto
+  footer: |
+    ---
+    Verify your backups restore: `pgproof verify --db <name>`
