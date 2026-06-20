@@ -23,11 +23,16 @@ case "$arch" in
 esac
 
 # --- resolve version ---------------------------------------------------------
+# Resolve "latest" from the releases/latest redirect target rather than the
+# REST API, which rate-limits unauthenticated callers to 60 requests/hour/IP.
 version="${PGPROOF_VERSION:-}"
 if [ -z "$version" ]; then
-  version="$(curl -fsSL "https://api.github.com/repos/$REPO/releases/latest" \
-    | grep '"tag_name"' | head -n1 | cut -d '"' -f4)"
-  [ -n "$version" ] || err "could not determine latest version; set PGPROOF_VERSION"
+  effective="$(curl -fsSLI -o /dev/null -w '%{url_effective}' "https://github.com/$REPO/releases/latest")"
+  version="${effective##*/tag/}"
+  case "$version" in
+    v[0-9]*) ;;
+    *) err "could not determine latest version; set PGPROOF_VERSION (e.g. v0.1.0)" ;;
+  esac
 fi
 num="${version#v}"
 
