@@ -4,7 +4,6 @@
 
 **Postgres & MySQL backups you've _proven_ restore.**
 
-[![CI](https://github.com/shaxzodbek-uzb/pgproof/actions/workflows/ci.yml/badge.svg)](https://github.com/shaxzodbek-uzb/pgproof/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/shaxzodbek-uzb/pgproof?sort=semver)](https://github.com/shaxzodbek-uzb/pgproof/releases)
 [![Go Report Card](https://goreportcard.com/badge/github.com/shaxzodbek-uzb/pgproof)](https://goreportcard.com/report/github.com/shaxzodbek-uzb/pgproof)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
