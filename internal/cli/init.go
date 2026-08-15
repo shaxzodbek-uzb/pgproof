@@ -134,6 +134,14 @@ notify:
   healthchecks:
     enabled: false
     ping_url: ${HC_PING_URL}
+  # Any JSON endpoint. Slack and Discord incoming webhooks work as-is: they read
+  # the payload's "text" field. Everything else gets the structured fields too.
+  webhook:
+    enabled: false
+    url: ${WEBHOOK_URL}
+    on_success: false
+    on_failure: true
+    headers: {}
 
 # Built-in scheduler for "pgproof run" (no system cron needed).
 schedule:

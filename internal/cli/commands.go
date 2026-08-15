@@ -3,7 +3,9 @@ package cli
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
+	"net/http"
 	"os"
 	"strings"
 	"text/tabwriter"
@@ -14,6 +16,7 @@ import (
 	"github.com/shaxzodbek-uzb/pgproof/internal/backup"
 	"github.com/shaxzodbek-uzb/pgproof/internal/catalog"
 	"github.com/shaxzodbek-uzb/pgproof/internal/scheduler"
+	"github.com/shaxzodbek-uzb/pgproof/internal/status"
 )
 
 func backupCmd() *cobra.Command {
@@ -228,6 +231,8 @@ func testCmd() *cobra.Command {
 }
 
 func runCmd() *cobra.Command {
+	var metricsAddr, metricsDest string
+	var maxAge time.Duration
 	cmd := &cobra.Command{
 		Use:   "run",
 		Short: "Run as a long-lived service, backing up on the configured schedule",
@@ -239,6 +244,19 @@ func runCmd() *cobra.Command {
 			}
 			if cfg.Schedule.Cron == "" {
 				return fmt.Errorf("`schedule.cron` is not set in the config")
+			}
+			if metricsAddr != "" {
+				srv := serveMetrics(cmd.Context(), metricsAddr, func(ctx context.Context) (status.Report, error) {
+					return buildStatus(ctx, runner, cfg, metricsDest, maxAge)
+				})
+				go func() {
+					log.Info("serving metrics", "addr", metricsAddr, "path", "/metrics")
+					if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+						// The scheduler is the point of this process; a metrics
+						// endpoint that can't bind must not take backups down.
+						log.Error("metrics server stopped", "error", err)
+					}
+				}()
 			}
 			job := func(ctx context.Context) {
 				if _, err := runner.BackupAll(ctx, nil); err != nil {
@@ -253,6 +271,12 @@ func runCmd() *cobra.Command {
 			return scheduler.Run(cmd.Context(), cfg.Schedule.Cron, cfg.Schedule.Timezone, log, job)
 		},
 	}
+	cmd.Flags().StringVar(&metricsAddr, "metrics-addr", "",
+		"serve Prometheus metrics on this address, e.g. :9187 (default: disabled)")
+	cmd.Flags().StringVar(&metricsDest, "metrics-dest", "",
+		"destination the metrics endpoint reads from (default: first readable)")
+	cmd.Flags().DurationVar(&maxAge, "max-age", 0,
+		"treat a backup older than this as stale in the metrics, e.g. 26h")
 	return cmd
 }
 

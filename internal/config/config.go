@@ -105,6 +105,20 @@ type Verify struct {
 type Notify struct {
 	Telegram     TelegramNotify     `yaml:"telegram"`
 	Healthchecks HealthchecksNotify `yaml:"healthchecks"`
+	Webhook      WebhookNotify      `yaml:"webhook"`
+}
+
+// WebhookNotify POSTs a JSON run summary to an arbitrary URL.
+//
+// Slack and Discord both accept a JSON body with a "text" field, so their
+// incoming-webhook URLs work with no extra configuration; anything else receives
+// the full structured payload and can read whichever fields it wants.
+type WebhookNotify struct {
+	Enabled   bool              `yaml:"enabled"`
+	URL       string            `yaml:"url"`
+	Headers   map[string]string `yaml:"headers"`
+	OnSuccess bool              `yaml:"on_success"`
+	OnFailure bool              `yaml:"on_failure"`
 }
 
 // TelegramNotify sends run summaries to a Telegram chat.

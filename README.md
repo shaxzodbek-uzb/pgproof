@@ -48,8 +48,11 @@ wants **nightly logical backups it can trust**, with zero moving parts.
 - ☁️ **Anywhere storage** — S3, **Cloudflare R2**, DigitalOcean Spaces, MinIO,
   local/NAS path, and Telegram as a write-only off-site copy. Fan out to several
   at once.
-- 📣 **It pages you** — Telegram alerts on success/failure and a
-  [healthchecks.io](https://healthchecks.io) dead-man's switch.
+- 📣 **It pages you** — Telegram alerts on success/failure, a
+  [healthchecks.io](https://healthchecks.io) dead-man's switch, and a JSON webhook
+  (Slack/Discord work as-is).
+- 📈 **Monitorable** — `pgproof status` exits non-zero when a database has no recent
+  *verified* backup, and [Prometheus metrics](#prometheus) come out of the same data.
 - 🗂️ **Retention** — grandfather-father-son (`keep last / daily / weekly / monthly`).
 - ⏰ **Built-in scheduler** — run as a systemd/Docker service, no system cron required.
 - 📦 **One static binary** — no runtime, no agent, no database of its own.
@@ -205,10 +208,106 @@ Prefer system cron? Just call `pgproof backup` — it's a clean one-shot.
 | `verify [id]` | Re-prove a stored backup restores |
 | `restore` | Restore a backup into a live database |
 | `list` | List backups with size + verify status |
+| `status` | Per-database health; exits non-zero when something is wrong |
+| `metrics` | Prometheus text exposition of the same picture |
 | `prune` | Apply the retention policy |
-| `run` | Long-lived scheduler |
+| `run` | Long-lived scheduler (`--metrics-addr` to serve `/metrics`) |
 | `test` | Check destination connectivity |
 | `keygen` | Generate an age keypair |
+
+## Monitoring
+
+A backup tool you can't monitor is one you find out about on the morning your primary
+dies — the exact failure this project exists to prevent. `status` answers the only
+question that matters, per database:
+
+```console
+$ pgproof status --max-age 26h
+DATABASE  HEALTH      LAST BACKUP       AGE  SIZE      VERIFY      BACKUPS
+app       ok          2026-08-15 03:00  9h   24.1 MiB  passed      14
+billing   unverified  2026-08-15 03:01  9h   8.3 MiB   skipped     14
+archive   missing     never             -    -         -           0
+
+✗ overall: missing
+  billing: the latest backup has not passed a restore test
+  archive: no backups found
+```
+
+It exits **2** when any database is unhealthy — distinct from exit 1, which means pgproof
+itself failed to run — so it drops straight into a monitoring wrapper with no parsing.
+`--json` gives you the same report structured.
+
+Health is derived from what's actually stored: a failed restore test beats staleness,
+staleness beats "never verified", and a configured database with **no backups at all** is
+reported as `missing` rather than quietly omitted. `last_verified` is tracked separately
+from `last_backup`, because a fresh backup that failed its restore test does not mean you
+have a fresh restorable backup.
+
+### Prometheus
+
+Same picture, as metrics. Two shapes, because backups are deployed two ways.
+
+**Cron** — write to the node_exporter textfile collector from the same entry:
+
+```bash
+pgproof backup && pgproof metrics -o /var/lib/node_exporter/textfile/pgproof.prom
+```
+
+Written via a temp file and renamed, so a scrape can never read a half-written file.
+
+**Long-lived** — serve it:
+
+```bash
+pgproof run --metrics-addr :9187 --max-age 26h
+```
+
+```
+pgproof_backup_last_success_timestamp_seconds{database="app"} 1786928400
+pgproof_backup_last_verified_timestamp_seconds{database="app"} 1786928400
+pgproof_backup_last_age_seconds{database="app"} 32400
+pgproof_backup_last_size_bytes{database="app"} 25272320
+pgproof_backup_last_duration_seconds{database="app"} 4.3
+pgproof_backup_last_verified{database="app"} 1
+pgproof_backup_count{database="app"} 14
+pgproof_backup_healthy{database="app"} 0
+pgproof_up 1
+```
+
+The alert worth having is on `pgproof_backup_last_verified`, not on backup age. A backup
+that ran is not the same as a backup that restores:
+
+```yaml
+- alert: BackupNotRestorable
+  expr: pgproof_backup_last_verified == 0
+  for: 1h
+```
+
+Gauges only, all derived from the stored manifests. Counters would need state pgproof
+deliberately doesn't keep, and a counter that resets on every cron invocation is worse
+than no counter. The metrics endpoint rebuilds per scrape rather than caching, so deleting
+a backup stops being reported immediately. If it can't read the destination it reports
+`pgproof_up 0` rather than failing the scrape — an alert on `pgproof_up` is more
+actionable than a scrape error.
+
+### Webhooks
+
+Alongside Telegram and healthchecks.io, any JSON endpoint:
+
+```yaml
+notify:
+  webhook:
+    enabled: true
+    url: ${WEBHOOK_URL}
+    on_failure: true
+    headers:
+      Authorization: Bearer ${WEBHOOK_TOKEN}
+```
+
+Slack and Discord incoming webhooks work with no extra configuration — they read the
+payload's `text` field, which is populated with the same summary Telegram gets. Anything
+else can read the structured `status` / `summary` / `sent_at` fields instead. Like every
+other channel, a failing webhook is swallowed: a notification must never fail or mask a
+backup outcome.
 
 ## Security
 

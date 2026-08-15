@@ -14,6 +14,7 @@ import (
 type Notifier struct {
 	tg config.TelegramNotify
 	hc config.HealthchecksNotify
+	wh config.WebhookNotify
 	c  *http.Client
 }
 
@@ -22,6 +23,7 @@ func New(n config.Notify) *Notifier {
 	return &Notifier{
 		tg: n.Telegram,
 		hc: n.Healthchecks,
+		wh: n.Webhook,
 		c:  &http.Client{Timeout: 20 * time.Second},
 	}
 }
@@ -41,6 +43,9 @@ func (n *Notifier) Success(ctx context.Context, summary string) {
 	if n.hc.Enabled && n.hc.PingURL != "" {
 		n.ping(ctx, n.hc.PingURL, summary)
 	}
+	if n.wh.Enabled && n.wh.OnSuccess {
+		n.webhook(ctx, "success", "✅ pgproof\n"+summary, summary)
+	}
 }
 
 // Failure reports a failed run.
@@ -50,5 +55,8 @@ func (n *Notifier) Failure(ctx context.Context, summary string) {
 	}
 	if n.hc.Enabled && n.hc.PingURL != "" {
 		n.ping(ctx, n.hc.PingURL+"/fail", summary)
+	}
+	if n.wh.Enabled && n.wh.OnFailure {
+		n.webhook(ctx, "failure", "❌ pgproof FAILED\n"+summary, summary)
 	}
 }
