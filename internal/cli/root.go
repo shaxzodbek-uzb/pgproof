@@ -58,6 +58,8 @@ func newRootCmd() *cobra.Command {
 		verifyCmd(),
 		restoreCmd(),
 		listCmd(),
+		statusCmd(),
+		metricsCmd(),
 		pruneCmd(),
 		runCmd(),
 		testCmd(),
