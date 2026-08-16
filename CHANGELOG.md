@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-08-16
+
 ### Fixed
 - **`go install` builds reported their version as `dev`.** The release ldflags
   only apply to the GoReleaser build, so anyone installing with
@@ -50,6 +52,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Grandfather-father-son retention (`keep last/daily/weekly/monthly`).
 - Built-in cron scheduler (`pgproof run`).
 
-[Unreleased]: https://github.com/shaxzodbek-uzb/pgproof/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/shaxzodbek-uzb/pgproof/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/shaxzodbek-uzb/pgproof/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/shaxzodbek-uzb/pgproof/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/shaxzodbek-uzb/pgproof/releases/tag/v0.1.0
