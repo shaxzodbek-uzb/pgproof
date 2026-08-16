@@ -27,6 +27,34 @@ func TestStringRendersAllThreeFields(t *testing.T) {
 	}
 }
 
+// A module-proxy install (`go install pkg@version`) knows its version and
+// nothing else, because the proxy serves a source archive rather than a repo.
+func TestStringOmitsFieldsItDoesNotKnow(t *testing.T) {
+	old := [3]string{Version, Commit, Date}
+	oldFlag := dateIsCommitTime
+	defer func() {
+		Version, Commit, Date = old[0], old[1], old[2]
+		dateIsCommitTime = oldFlag
+	}()
+
+	dateIsCommitTime = false
+
+	Version, Commit, Date = "v1.2.3", "none", "unknown"
+	if got, want := String(), "pgproof v1.2.3"; got != want {
+		t.Errorf("String() = %q, want %q", got, want)
+	}
+
+	Version, Commit, Date = "v1.2.3", "abc1234", "unknown"
+	if got, want := String(), "pgproof v1.2.3 (commit abc1234)"; got != want {
+		t.Errorf("String() = %q, want %q", got, want)
+	}
+
+	Version, Commit, Date = "v1.2.3", "none", "2026-08-16T00:00:00Z"
+	if got, want := String(), "pgproof v1.2.3 (built 2026-08-16T00:00:00Z)"; got != want {
+		t.Errorf("String() = %q, want %q", got, want)
+	}
+}
+
 // `go test` builds a test binary from the working tree, so the module version is
 // "(devel)" and there is no release tag to recover. The point here is that the
 // fallback leaves the placeholders alone rather than writing "(devel)" into the

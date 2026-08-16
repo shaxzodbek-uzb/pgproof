@@ -6,6 +6,14 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+- The version banner now names only the fields it actually knows. A module-proxy
+  install has no commit or build date to report — the proxy serves a source
+  archive, not a repository — and printing `(commit none, built unknown)` there
+  read as a broken build rather than a normal install. `pgproof --version` now
+  prints just `pgproof v0.2.1` in that case, and keeps the full detail whenever
+  it is genuinely available.
+
 ## [0.2.1] - 2026-08-16
 
 ### Fixed
@@ -14,9 +22,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `go install github.com/shaxzodbek-uzb/pgproof@v0.2.0` — the usual way to
   install a Go tool — got a binary that could not say which version it was. That
   is a poor answer from a backup tool being quoted in an incident report. The
-  version, commit and date now fall back to the module and VCS metadata the Go
-  toolchain embeds on its own. A stamped value still wins, since a release build
-  knows its tag exactly.
+  version now falls back to the module metadata the Go toolchain embeds on its
+  own, and the commit and date to VCS metadata when the binary was built from a
+  checkout — a module-proxy install has no repository to read those from. A
+  stamped value still wins, since a release build knows its tag exactly.
 - The banner now says `commit dated` rather than `built` when the timestamp came
   from VCS metadata, because that is the commit time — a `go install` build has
   no build timestamp to report.

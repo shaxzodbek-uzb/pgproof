@@ -11,6 +11,7 @@ package buildinfo
 import (
 	"fmt"
 	"runtime/debug"
+	"strings"
 )
 
 var (
@@ -56,12 +57,32 @@ func init() {
 	}
 }
 
-// String renders a one-line version banner.
+// String renders a one-line version banner, naming only the fields it actually
+// knows.
+//
+// Installing from the module proxy (`go install pkg@version`) gets no VCS
+// metadata at all — the proxy serves a source archive, not a repository — so
+// commit and date stay empty there. Printing "commit none, built unknown" in
+// that case reads as a broken build rather than a normal install, so those
+// parts are simply left out.
 func String() string {
-	when := "built"
-	if dateIsCommitTime {
-		when = "commit dated"
+	s := "pgproof " + Version
+
+	var parts []string
+	if Commit != "none" {
+		parts = append(parts, "commit "+Commit)
+	}
+	if Date != "unknown" {
+		when := "built"
+		if dateIsCommitTime {
+			when = "commit dated"
+		}
+		parts = append(parts, when+" "+Date)
 	}
 
-	return fmt.Sprintf("pgproof %s (commit %s, %s %s)", Version, Commit, when, Date)
+	if len(parts) > 0 {
+		s += fmt.Sprintf(" (%s)", strings.Join(parts, ", "))
+	}
+
+	return s
 }
