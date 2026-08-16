@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-08-16
+
 ### Added
 - `pgproof status` — per-database backup health (last backup, age, size, verify
   status, and the last backup that actually *passed* a restore test). Exits `2`
@@ -35,4 +37,6 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Grandfather-father-son retention (`keep last/daily/weekly/monthly`).
 - Built-in cron scheduler (`pgproof run`).
 
+[Unreleased]: https://github.com/shaxzodbek-uzb/pgproof/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/shaxzodbek-uzb/pgproof/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/shaxzodbek-uzb/pgproof/releases/tag/v0.1.0
