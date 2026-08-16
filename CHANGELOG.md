@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.2.2] - 2026-08-16
+
 ### Changed
 - The version banner now names only the fields it actually knows. A module-proxy
   install has no commit or build date to report — the proxy serves a source
@@ -61,7 +63,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Grandfather-father-son retention (`keep last/daily/weekly/monthly`).
 - Built-in cron scheduler (`pgproof run`).
 
-[Unreleased]: https://github.com/shaxzodbek-uzb/pgproof/compare/v0.2.1...HEAD
+[Unreleased]: https://github.com/shaxzodbek-uzb/pgproof/compare/v0.2.2...HEAD
+[0.2.2]: https://github.com/shaxzodbek-uzb/pgproof/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/shaxzodbek-uzb/pgproof/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/shaxzodbek-uzb/pgproof/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/shaxzodbek-uzb/pgproof/releases/tag/v0.1.0
