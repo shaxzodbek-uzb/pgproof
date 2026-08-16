@@ -6,6 +6,19 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+- **`go install` builds reported their version as `dev`.** The release ldflags
+  only apply to the GoReleaser build, so anyone installing with
+  `go install github.com/shaxzodbek-uzb/pgproof@v0.2.0` — the usual way to
+  install a Go tool — got a binary that could not say which version it was. That
+  is a poor answer from a backup tool being quoted in an incident report. The
+  version, commit and date now fall back to the module and VCS metadata the Go
+  toolchain embeds on its own. A stamped value still wins, since a release build
+  knows its tag exactly.
+- The banner now says `commit dated` rather than `built` when the timestamp came
+  from VCS metadata, because that is the commit time — a `go install` build has
+  no build timestamp to report.
+
 ## [0.2.0] - 2026-08-16
 
 ### Added
