@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.2.3] - 2026-08-19
+
 ### Fixed
 - **`pgproof verify` results were never recorded, so `status` and `metrics` kept
   reporting a backup as verified after the proof that it was not.** The manifest
@@ -82,7 +84,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Grandfather-father-son retention (`keep last/daily/weekly/monthly`).
 - Built-in cron scheduler (`pgproof run`).
 
-[Unreleased]: https://github.com/shaxzodbek-uzb/pgproof/compare/v0.2.2...HEAD
+[Unreleased]: https://github.com/shaxzodbek-uzb/pgproof/compare/v0.2.3...HEAD
+[0.2.3]: https://github.com/shaxzodbek-uzb/pgproof/compare/v0.2.2...v0.2.3
 [0.2.2]: https://github.com/shaxzodbek-uzb/pgproof/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/shaxzodbek-uzb/pgproof/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/shaxzodbek-uzb/pgproof/compare/v0.1.0...v0.2.0
