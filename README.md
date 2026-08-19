@@ -15,13 +15,13 @@ database, encrypts it, ships it to S3/R2/local/Telegram — and then **restores 
 into a throwaway database to prove it actually works.** If a backup can't be
 restored, it pings you on Telegram *today*, not the morning your primary dies.
 
-```console
-$ pgproof backup
-• app: 24.1 MiB, verified ✓ (42 tables) → [r2, disk] in 4.3s
-```
+<p align="center">
+  <img src="docs/demo.svg" alt="pgproof backing up a database, proving it restores, and catching a corrupted artifact" width="860">
+</p>
 
 That `verified ✓` is the whole point. Every other line of this README is in
-service of it.
+service of it — and the last two commands above are why: when the stored artifact
+is damaged, `verify` fails loudly instead of reporting a backup you don't have.
 
 ---
 

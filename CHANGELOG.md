@@ -6,6 +6,25 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+- **`pgproof verify` results were never recorded, so `status` and `metrics` kept
+  reporting a backup as verified after the proof that it was not.** The manifest
+  was only ever written at backup time; a standalone verification returned its
+  verdict to the terminal and dropped it. Corrupt the stored artifact and
+  `verify` would correctly fail with exit 1, while `pgproof status` still printed
+  `✓ all databases have a recent, verified backup` and
+  `pgproof_backup_last_verified` stayed at `1` — silencing exactly the monitoring
+  that the restore test exists to drive. `verify` now writes its outcome back to
+  the manifest it read, including the case where the artifact cannot be fetched
+  or decrypted at all, which is the corruption this tool is meant to catch.
+
+### Changed
+- A manifest's `verify`, `verify_note` and `verified_at` fields now describe the
+  **most recent** restore test rather than only the one taken at backup time, and
+  a passing `verify` moves `verified_at` forward even when the verdict is
+  unchanged — otherwise a monitor asking "when did we last prove this restores?"
+  goes stale while the verifications are still running and passing.
+
 ## [0.2.2] - 2026-08-16
 
 ### Changed

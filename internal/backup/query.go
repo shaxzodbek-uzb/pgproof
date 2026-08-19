@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/shaxzodbek-uzb/pgproof/internal/catalog"
@@ -76,18 +77,65 @@ func (r *Runner) VerifyExisting(ctx context.Context, dbName, destName, which str
 	ext := extFor(db.Driver, e.Manifest.Format)
 	path, cleanup, err := r.materialize(ctx, d, e.Manifest.Artifact, ext, e.Manifest.Encrypted)
 	if err != nil {
-		return verify.Report{}, fmt.Errorf("fetch artifact: %w", err)
+		// A stored artifact we cannot even fetch or decrypt is exactly the failure
+		// this command exists to surface, so it has to reach the manifest too —
+		// otherwise `status` and `metrics` keep reporting the backup as verified.
+		err = fmt.Errorf("fetch artifact: %w", err)
+		r.recordVerifyResult(ctx, d, e, catalog.VerifyFailed, err.Error())
+		return verify.Report{}, err
 	}
 	defer cleanup()
 
 	vctx, cancel := r.withTimeout(ctx)
 	defer cancel()
-	return verify.Run(vctx, verify.Target{
+	rep, err := verify.Run(vctx, verify.Target{
 		DB:             db,
 		DumpPath:       path,
 		MinTables:      r.cfg.Verify.MinTables,
 		RowCountTables: r.cfg.Verify.RowCountTables,
 	}, r.log)
+	switch {
+	case err != nil:
+		r.recordVerifyResult(ctx, d, e, catalog.VerifyFailed, err.Error())
+	case !rep.OK:
+		r.recordVerifyResult(ctx, d, e, catalog.VerifyFailed, rep.Note)
+	default:
+		r.recordVerifyResult(ctx, d, e, catalog.VerifyPassed, rep.Note)
+	}
+	return rep, err
+}
+
+// recordVerifyResult writes the outcome of a standalone verification back into
+// the backup's manifest, so the manifest's verify fields always describe the most
+// recent restore test rather than only the one taken at backup time. Without this
+// a failing `pgproof verify` would leave `status` and `metrics` reporting green.
+//
+// A manifest that cannot be updated must not turn a successful verification into
+// a command failure, so this only warns.
+func (r *Runner) recordVerifyResult(ctx context.Context, d dest, e manifestEntry, result, note string) {
+	m := e.Manifest
+	if result == catalog.VerifyPassed {
+		// Always rewrite on a pass, even when the verdict is unchanged: verified_at
+		// is how a monitor answers "when did we last prove this restores?", so a
+		// repeated verification has to move it forward.
+		now := time.Now().UTC()
+		m.VerifiedAt = &now
+	} else if m.Verify == result && m.VerifyNote == note {
+		return // the same failure is already recorded; nothing would change
+	}
+	m.Verify = result
+	m.VerifyNote = note
+
+	payload, err := json.MarshalIndent(m, "", "  ")
+	if err != nil {
+		r.log.Warn("could not encode updated manifest", "key", e.ManifestKey, "error", err)
+		return
+	}
+	pctx, cancel := r.withTimeout(ctx)
+	defer cancel()
+	if err := d.d.Put(pctx, e.ManifestKey, strings.NewReader(string(payload)), int64(len(payload))); err != nil {
+		r.log.Warn("could not record verify result in manifest", "key", e.ManifestKey, "error", err)
+	}
 }
 
 func (r *Runner) listManifests(ctx context.Context, d dest, dbName string) ([]manifestEntry, error) {
